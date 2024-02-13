@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boost Infinite Orders</title>
+    <style>
+        /* Hide the labels, email and address fields initially */
+        label, input[type="email"], select, #runButton, #phoneName2Label, #phoneName2Field, #phoneName3Label, #phoneName3Field, #byodOrderCountLabel, #byodOrderCountField {
+            display: none;
+        }
+
+        /* Some basic styling for better appearance */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #fieldsContainer {
+            margin-top: 20px;
+        }
+
+        input[type="email"], select, #runButton, .orderButton {
+            margin-top: 10px;
+            padding: 8px 6px; /* Reduced button width */
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: middle; /* Align text to the left */
+        }
+
+        .orderButton {
+            background-color: #FFA500;
+            color: #000;
+            font-weight: bold; /* Make button text bold */
+        }
+
+        .selected {
+            background-color: #FFA500; /* Highlighted button color */
+            opacity: 1; /* Full opacity for selected button */
+        }
+
+        .unselected {
+            opacity: 0.5; /* Reduced opacity for unselected button */
+        }
+
+        #runButton {
+            background-color: #000;
+            color: #fff;
+            font-weight: bold;
+            opacity: 0.5; /* Reduced opacity */
+        }
+
+        .orderButton:hover {
+            background-color: #FF8C00;
+        }
+
+        #runButton:hover {
+            background-color: #333;
+        }
+
+        .checkbox-container {
+            display: block;
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            margin-right: 10px;
+            display: inline-block; /* Display checkbox-item inline */
+        }
+
+        .checkbox-label {
+            display: inline-block; /* Display label inline-block */
+            margin-bottom: 5px; /* Adjusted margin */
+            width: 50%; /* Set label width to 50% */
+        }
+
+        .phone-plan-dropdown {
+            margin-top: 5px;
+            width: 45%; /* Adjusted width */
+            display: inline-block; /* Display dropdown inline-block */
+            box-sizing: border-box; /* Include padding and border in the width */
+        }
+    </style>
+</head>
+<body>
+<h1>Boost Infinite Orders</h1>
+<button class="orderButton selected" id="createSingleOrderButton" onclick="showFields('single')" buttonClick="false">Create Single Order</button>
+<button class="orderButton selected" id="createMultiOrderButton" onclick="showFields('multi')" buttonClick="false">Create Multi Order</button>
+<button class="orderButton selected" id="byodOrderButton" onclick="showFields('byod')" buttonClick="false">BYOD Order</button>
+<div id="fieldsContainer">
+    <!-- Common fields for all orders -->
+    <label for="addressField">Address:</label>
+    <!-- Changed address field to dropdown -->
+    <select id="addressField" onchange="updateValue(this)">
+        <option value="" disabled selected>Select your address</option>
+    </select>
+    <br>
+    <label for="emailField">Email:</label>
+    <input type="email" id="emailField" placeholder="Enter your email" value="" oninput="updateTextValue(this)">
+    <br>
+    <!-- Number of BYOD Order(s) field -->
+    <label id="byodOrderCountLabel" for="byodOrderCountField" style="display: none;">Number of BYOD Order(s):</label>
+    <input type="number" id="byodOrderCountField" style="display: none;" min="1" max="5" value="1">
+    <br>
+    <div id="phoneNameDropdown" style="display: none;">
+        <label for="phoneNameField" class="phoneNameLabel">Phone Name:</label>
+        <select id="phoneNameField" onchange="updateValue(this)">
+            <option value="" disabled selected>Select any one phone</option>
+        </select>
+    </div>
+    <div id="phoneNameMultiselect" style="display:none;">
+        <label for="phoneNameField" class="phoneNameLabel">Phone Names (Select up to 5):</label>
+        <div class="checkbox-container" id="checkboxContainer">
+        </div>
+    </div>
+    <br>
+    <button id="runButton" onclick="run()" buttonClick="false" disabled>Run</button>
+</div>
+
+<script>
+    var singleOrderButton = document.getElementById("createSingleOrderButton");
+    var multiOrderButton = document.getElementById("createMultiOrderButton");
+    var byodOrderButton = document.getElementById("byodOrderButton");
+    var singleOrderButtonClicked = false;
+    var multiOrderButtonClicked = false;
+    var byodOrderButtonClicked = false;
+
+    // Define options for address dropdown
+    var addressOptions = [
+        "77 Brookfield Ave Bridgeport, CT 06610",
+        "3321 Antelope Way Evans, CO 80620",
+        "3 Ravinia Dr Atlanta, GA 30346",
+        "4909 Cambridge Dr Atlanta, GA 30338",
+        "4599 Harmony Pl Rohnert Park, CA 94928",
+        "1602 Hollybriar Ln Greenville, NC 27858",
+        "10400 Park Meadows Dr Lone Tree, CO 80124",
+        "31 Stunning Summit Ave Henderson, NV 89002",
+        "2250 Las Vegas Blvd N North Las Vegas, NV 89030",
+        "856 Woodtack Cove Way Henderson, NV 89002",
+        "200 Ave Fragoso Ste 322 Carolina, PR 00983",
+        "4262 Highway 41 W Comfort, NC 28522"
+    ];
+
+    // Define options for phone name dropdown
+    var phoneNameOptions = [
+        "Motorola moto g 5G",
+        "Motorola Edge+ 2023",
+        "Galaxy S23 Ultra",
+        "Galaxy S24 Ultra",
+        "iPhone 13 mini",
+        "iPhone 15 Plus",
+        "Celero5G",
+        "Celero Celero 5G"
+    ];
+
+    // Define phone plans for each phone
+    var phonesAndPlans = {
+        "Motorola moto g 5G": ["Infinite Unlimited"],
+        "Motorola Edge+ 2023": ["Infinite Unlimited", "Infinite Unlimited+"],
+        "Galaxy S23 Ultra": ["Infinite Unlimited"],
+        "Galaxy S24 Ultra": ["Infinite Unlimited", "Infinite Access for Galaxy"],
+        "iPhone 13 mini": ["Infinite Unlimited"],
+        "iPhone 15 Plus": ["Infinite Unlimited", "Infinite Unlimited+", "Infinite Access for iPhone"],
+        "Celero5G": ["Infinite Unlimited"],
+        "Celero Celero 5G": ["Infinite Unlimited"]
+    };
+
+    function populateDropdownOptions(selectElement, options) {
+        options.forEach(function(option) {
+            var optionElement = document.createElement("option");
+            optionElement.value = option;
+            optionElement.textContent = option;
+            selectElement.appendChild(optionElement);
+        });
+    }
+
+    function populateCheckboxOptions(containerElement, options) {
+        options.forEach(function(phone, index) {
+            // Create checkbox element
+            var checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.classList.add("checkbox-item");
+            checkbox.value = phone;
+            checkbox.id = "phoneCheckbox" + index;
+            checkbox.setAttribute("buttonclick", "false");
+            checkbox.onchange = function() {
+                this.setAttribute("buttonclick", this.checked ? "true" : "false");
+                limitSelection();
+                updateRunButtonState();
+            };
+
+            // Create select dropdown element
+            var select = document.createElement("select");
+            select.classList.add("phone-plan-dropdown");
+            select.dataset.phone = phone;
+
+            // Create options for select dropdown
+            phonesAndPlans[phone].forEach(function(plan) {
+                var option = document.createElement("option");
+                option.value = plan;
+                option.textContent = plan;
+                select.appendChild(option);
+            });
+
+            // Create label element
+            var label = document.createElement("label");
+            label.classList.add("checkbox-label");
+            label.style.display = "inline-block"; /* Display label inline-block */
+            label.style.marginBottom = "5px"; /* Adjusted margin */
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(phone));
+            // Append label and select to checkbox container
+            containerElement.appendChild(label);
+            containerElement.appendChild(select);
+        });
+    }
+
+    function showFields(type) {
+        clearData();
+        if (type === 'single') {
+            singleOrderButtonClicked = true;
+            multiOrderButtonClicked = false;
+            byodOrderButtonClicked = false;
+            singleOrderButton.classList.add("selected");
+            singleOrderButton.classList.remove("unselected");
+            multiOrderButton.classList.add("unselected");
+            multiOrderButton.classList.remove("selected");
+            byodOrderButton.classList.add("unselected");
+            byodOrderButton.classList.remove("selected");
+            document.getElementById("byodOrderCountLabel").style.display = "none";
+            document.getElementById("byodOrderCountField").style.display = "none";
+        } else if (type === 'multi') {
+            multiOrderButtonClicked = true;
+            singleOrderButtonClicked = false;
+            byodOrderButtonClicked = false;
+            multiOrderButton.classList.add("selected");
+            multiOrderButton.classList.remove("unselected");
+            singleOrderButton.classList.add("unselected");
+            singleOrderButton.classList.remove("selected");
+            byodOrderButton.classList.add("unselected");
+            byodOrderButton.classList.remove("selected");
+            document.getElementById("byodOrderCountLabel").style.display = "none";
+            document.getElementById("byodOrderCountField").style.display = "none";
+        } else if (type === 'byod') {
+            byodOrderButtonClicked = true;
+            singleOrderButtonClicked = false;
+            multiOrderButtonClicked = false;
+            byodOrderButton.classList.add("selected");
+            byodOrderButton.classList.remove("unselected");
+            singleOrderButton.classList.add("unselected");
+            singleOrderButton.classList.remove("selected");
+            multiOrderButton.classList.add("unselected");
+            multiOrderButton.classList.remove("selected");
+            document.getElementById("byodOrderCountLabel").style.display = "block";
+            document.getElementById("byodOrderCountField").style.display = "block";
+            updateRunButtonState();
+        }
+
+        // Set button click attribute to true
+        singleOrderButton.setAttribute("buttonClick", singleOrderButtonClicked.toString());
+        multiOrderButton.setAttribute("buttonClick", multiOrderButtonClicked.toString());
+        byodOrderButton.setAttribute("buttonClick", byodOrderButtonClicked.toString());
+
+        // Get the common fields and the order-specific fields
+        var commonFields = document.querySelectorAll('label, input[type="email"], select, #runButton');
+        var phoneNameDropdown = document.getElementById("phoneNameDropdown");
+        var phoneNameMultiselect = document.getElementById("phoneNameMultiselect");
+
+        // Display the common fields
+        commonFields.forEach(function(item) {
+            item.style.display = "block";
+        });
+
+        // Show or hide the appropriate phone name field based on the order type
+        if (type === 'single') {
+            phoneNameDropdown.style.display = "block";
+            phoneNameMultiselect.style.display = "none";
+        } else if (type === 'multi') {
+            phoneNameDropdown.style.display = "none";
+            phoneNameMultiselect.style.display = "block";
+        } else if (type === 'byod') {
+            phoneNameDropdown.style.display = "block";
+            phoneNameMultiselect.style.display = "none";
+        }
+
+        updateRunButtonState();
+    }
+
+    function updateTextValue(inputElement) {
+        var value = inputElement.value;
+        inputElement.setAttribute("value", value);
+    }
+
+    // Function to update the value attribute of the respective input field
+    function updateValue(inputElement) {
+        var selectedOptions = [];
+        var options = inputElement && inputElement.options;
+        var opt;
+
+        for (var i = 0; i < options.length; i++) {
+            opt = options[i];
+
+            if (opt.selected) {
+                selectedOptions.push(opt.value || opt.text);
+            }
+        }
+
+        // Set the value attribute
+        inputElement.setAttribute("value", selectedOptions.join(", "));
+        updateRunButtonState();
+    }
+
+    // Limit the selection to 5 checkboxes
+    function limitSelection() {
+        var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        var checkedCount = 0;
+
+        checkboxes.forEach(function(checkbox) {
+            if (checkbox.checked) {
+                checkedCount++;
+            }
+        });
+
+        if (checkedCount >= 5) {
+            checkboxes.forEach(function(checkbox) {
+                if (!checkbox.checked) {
+                    checkbox.disabled = true;
+                }
+            });
+        } else {
+            checkboxes.forEach(function(checkbox) {
+                checkbox.disabled = false;
+            });
+        }
+
+        updateRunButtonState();
+    }
+
+    function run() {
+        // Set button click attribute to true
+        document.getElementById("runButton").setAttribute("buttonClick", "true");
+
+        // Log button click booleans to the console
+        console.log("Single Order Button Clicked: " + singleOrderButtonClicked);
+        console.log("Multi Order Button Clicked: " + multiOrderButtonClicked);
+        console.log("BYOD Order Button Clicked: " + byodOrderButtonClicked);
+
+        // Get the values of all fields
+        var emailValue = document.getElementById("emailField").value;
+        var addressValue = document.getElementById("addressField").value;
+        var phoneNameValue = "";
+
+        if (singleOrderButtonClicked) {
+            phoneNameValue = document.getElementById("phoneNameField").value;
+        } else if (multiOrderButtonClicked) {
+            var checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            var selectedOptions = [];
+
+            checkboxes.forEach(function(checkbox) {
+                selectedOptions.push(checkbox.value);
+            });
+
+            phoneNameValue = selectedOptions.join(", ");
+        }
+
+        // Log the values to the console
+        console.log("Email:", emailValue);
+        console.log("Address:", addressValue);
+        console.log("Phone Names:", phoneNameValue);
+    }
+
+    function updateRunButtonState() {
+        var emailValue = document.getElementById("emailField").value;
+        var addressValue = document.getElementById("addressField").value;
+
+        var runButton = document.getElementById("runButton");
+        if (byodOrderButtonClicked && addressValue) {
+            runButton.disabled = false;
+            runButton.style.opacity = "1"; // Restore full opacity
+        } else if (singleOrderButtonClicked || multiOrderButtonClicked) {
+            var phoneNameValue = "";
+
+            if (singleOrderButtonClicked) {
+                phoneNameValue = document.getElementById("phoneNameField").value;
+            } else if (multiOrderButtonClicked) {
+                var checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                var selectedOptions = [];
+
+                checkboxes.forEach(function(checkbox) {
+                    selectedOptions.push(checkbox.value);
+                });
+
+                phoneNameValue = selectedOptions.join(", ");
+            }
+
+            if (emailValue && addressValue && phoneNameValue) {
+                runButton.disabled = false;
+                runButton.style.opacity = "1"; // Restore full opacity
+            } else {
+                runButton.disabled = true;
+                runButton.style.opacity = "0.5"; // Reduced opacity
+            }
+        } else {
+            runButton.disabled = true;
+            runButton.style.opacity = "0.5"; // Reduced opacity
+        }
+    }
+
+    function clearData() {
+        document.getElementById("emailField").value = "";
+        document.getElementById("addressField").value = "";
+        document.getElementById("phoneNameField").value = "";
+        var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = false;
+        });
+        updateRunButtonState();
+    }
+
+    // Populate options for address dropdown
+    populateDropdownOptions(document.getElementById("addressField"), addressOptions);
+
+    // Populate options for phone name dropdown
+    populateDropdownOptions(document.getElementById("phoneNameField"), phoneNameOptions);
+
+    // Populate options for phone name multiselect
+    populateCheckboxOptions(document.getElementById("checkboxContainer"), phoneNameOptions);
+</script>
+</body>
+</html>
