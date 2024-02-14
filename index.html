@@ -78,14 +78,27 @@
         .checkbox-label {
             display: inline-block; /* Display label inline-block */
             margin-bottom: 5px; /* Adjusted margin */
-            width: 50%; /* Set label width to 50% */
+            width: 20%; /* Set label width to 45% */
         }
 
         .phone-plan-dropdown {
             margin-top: 5px;
-            width: 45%; /* Adjusted width */
+            width: 10%; /* Adjusted width */
             display: inline-block; /* Display dropdown inline-block */
             box-sizing: border-box; /* Include padding and border in the width */
+        }
+
+        .phone-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .phone-container .checkbox-item {
+            margin-right: 10px;
+        }
+
+        .phone-container .phone-plan-dropdown {
+            margin-left: 10px;
         }
     </style>
 </head>
@@ -106,28 +119,33 @@
     <input type="email" id="emailField" placeholder="Enter your email" value="" oninput="updateTextValue(this)">
     <br>
     <!-- Number of BYOD Order(s) field -->
-    <label id="byodOrderCountLabel" for="byodOrderCountField" style="display: none;">Number of BYOD Order(s):</label>
-    <input type="number" id="byodOrderCountField" style="display: none;" min="1" max="5" value="1">
+    <label id="byodOrderCountLabel" for="byodOrderCountField" style="display: none;">Number of BYOD Order(s) (Select up to 5): </label>
+    <input type="number" id="byodOrderCountField" style="display: none;" min="1" max="5" onkeydown="return false" value="1" onchange="updateTextValue(this)"><br>
+
+
     <br>
     <div id="phoneNameDropdown" style="display: none;">
         <label for="phoneNameField" class="phoneNameLabel">Phone Name:</label>
-        <select id="phoneNameField" onchange="updateValue(this)">
+        <select id="phoneNameField" onchange="updateValue(this)" disabled>
             <option value="" disabled selected>Select any one phone</option>
         </select>
     </div>
     <div id="phoneNameMultiselect" style="display:none;">
-        <label for="phoneNameField" class="phoneNameLabel">Phone Names (Select up to 5):</label>
+        <label for="phoneNameField" class="phoneNameLabel">Phone Names (Select up to 5) w/o Plans:</label>
         <div class="checkbox-container" id="checkboxContainer">
         </div>
     </div>
+
+
     <br>
     <button id="runButton" onclick="run()" buttonClick="false" disabled>Run</button>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    var singleOrderButton = document.getElementById("createSingleOrderButton");
-    var multiOrderButton = document.getElementById("createMultiOrderButton");
-    var byodOrderButton = document.getElementById("byodOrderButton");
+    var singleOrderButton = $("#createSingleOrderButton");
+    var multiOrderButton = $("#createMultiOrderButton");
+    var byodOrderButton = $("#byodOrderButton");
     var singleOrderButtonClicked = false;
     var multiOrderButtonClicked = false;
     var byodOrderButtonClicked = false;
@@ -174,51 +192,58 @@
 
     function populateDropdownOptions(selectElement, options) {
         options.forEach(function(option) {
-            var optionElement = document.createElement("option");
-            optionElement.value = option;
-            optionElement.textContent = option;
-            selectElement.appendChild(optionElement);
+            var optionElement = $("<option>");
+            optionElement.val(option);
+            optionElement.text(option);
+            selectElement.append(optionElement);
         });
     }
 
     function populateCheckboxOptions(containerElement, options) {
         options.forEach(function(phone, index) {
+            // Create container div for each checkbox and dropdown pair
+            var containerDiv = $("<div>").addClass("phone-container");
+
             // Create checkbox element
-            var checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.classList.add("checkbox-item");
-            checkbox.value = phone;
-            checkbox.id = "phoneCheckbox" + index;
-            checkbox.setAttribute("buttonclick", "false");
-            checkbox.onchange = function() {
-                this.setAttribute("buttonclick", this.checked ? "true" : "false");
+            var checkbox = $("<input>").attr({
+                type: "checkbox",
+                class: "checkbox-item",
+                value: phone,
+                id: "phoneCheckbox" + index,
+                buttonclick: "false"
+            }).on("change", function() {
+                $(this).attr("buttonclick", this.checked ? "true" : "false");
                 limitSelection();
                 updateRunButtonState();
-            };
+                var dropdown = $(this).closest('.phone-container').find('.phone-plan-dropdown');
+                dropdown.prop("disabled", !this.checked);
+            });
 
             // Create select dropdown element
-            var select = document.createElement("select");
-            select.classList.add("phone-plan-dropdown");
-            select.dataset.phone = phone;
+            var select = $("<select>").addClass("phone-plan-dropdown").attr("data-phone", phone).prop("disabled", true).change(function() {
+                var selectedOption = $(this).find('option:selected').val();
+                $(this).attr("selected-value", selectedOption);
+            });
 
             // Create options for select dropdown
-            phonesAndPlans[phone].forEach(function(plan) {
-                var option = document.createElement("option");
-                option.value = plan;
-                option.textContent = plan;
-                select.appendChild(option);
+            phonesAndPlans[phone].forEach(function(plan, index) {
+                var option = $("<option>").val(plan).text(plan);
+                // Check if the option is the first one and set selected-value attribute accordingly
+                if (index === 0) {
+                    option.attr("selected", "selected");
+                    select.attr("selected-value", plan); // Set selected-value attribute for the dropdown
+                }
+                select.append(option);
             });
 
             // Create label element
-            var label = document.createElement("label");
-            label.classList.add("checkbox-label");
-            label.style.display = "inline-block"; /* Display label inline-block */
-            label.style.marginBottom = "5px"; /* Adjusted margin */
-            label.appendChild(checkbox);
-            label.appendChild(document.createTextNode(phone));
-            // Append label and select to checkbox container
-            containerElement.appendChild(label);
-            containerElement.appendChild(select);
+            var label = $("<label>").addClass("checkbox-label").append(checkbox).append(document.createTextNode(phone));
+
+            // Append checkbox and label to container div
+            containerDiv.append(label).append(select);
+
+            // Append container div to checkbox container
+            containerElement.append(containerDiv);
         });
     }
 
@@ -228,66 +253,61 @@
             singleOrderButtonClicked = true;
             multiOrderButtonClicked = false;
             byodOrderButtonClicked = false;
-            singleOrderButton.classList.add("selected");
-            singleOrderButton.classList.remove("unselected");
-            multiOrderButton.classList.add("unselected");
-            multiOrderButton.classList.remove("selected");
-            byodOrderButton.classList.add("unselected");
-            byodOrderButton.classList.remove("selected");
-            document.getElementById("byodOrderCountLabel").style.display = "none";
-            document.getElementById("byodOrderCountField").style.display = "none";
+            singleOrderButton.addClass("selected").removeClass("unselected");
+            multiOrderButton.addClass("unselected").removeClass("selected");
+            byodOrderButton.addClass("unselected").removeClass("selected");
+            //$("#byodOrderCountLabel, #byodOrderCountField").hide();
         } else if (type === 'multi') {
             multiOrderButtonClicked = true;
             singleOrderButtonClicked = false;
             byodOrderButtonClicked = false;
-            multiOrderButton.classList.add("selected");
-            multiOrderButton.classList.remove("unselected");
-            singleOrderButton.classList.add("unselected");
-            singleOrderButton.classList.remove("selected");
-            byodOrderButton.classList.add("unselected");
-            byodOrderButton.classList.remove("selected");
-            document.getElementById("byodOrderCountLabel").style.display = "none";
-            document.getElementById("byodOrderCountField").style.display = "none";
+            multiOrderButton.addClass("selected").removeClass("unselected");
+            singleOrderButton.addClass("unselected").removeClass("selected");
+            byodOrderButton.addClass("unselected").removeClass("selected");
+            //$("#byodOrderCountLabel, #byodOrderCountField").hide();
         } else if (type === 'byod') {
             byodOrderButtonClicked = true;
             singleOrderButtonClicked = false;
             multiOrderButtonClicked = false;
-            byodOrderButton.classList.add("selected");
-            byodOrderButton.classList.remove("unselected");
-            singleOrderButton.classList.add("unselected");
-            singleOrderButton.classList.remove("selected");
-            multiOrderButton.classList.add("unselected");
-            multiOrderButton.classList.remove("selected");
-            document.getElementById("byodOrderCountLabel").style.display = "block";
-            document.getElementById("byodOrderCountField").style.display = "block";
-            updateRunButtonState();
+            byodOrderButton.addClass("selected").removeClass("unselected");
+            singleOrderButton.addClass("unselected").removeClass("selected");
+            multiOrderButton.addClass("unselected").removeClass("selected");
+            //$("#byodOrderCountLabel, #byodOrderCountField").show();
+            //updateRunButtonState();
         }
 
         // Set button click attribute to true
-        singleOrderButton.setAttribute("buttonClick", singleOrderButtonClicked.toString());
-        multiOrderButton.setAttribute("buttonClick", multiOrderButtonClicked.toString());
-        byodOrderButton.setAttribute("buttonClick", byodOrderButtonClicked.toString());
+        singleOrderButton.attr("buttonClick", singleOrderButtonClicked.toString());
+        multiOrderButton.attr("buttonClick", multiOrderButtonClicked.toString());
+        byodOrderButton.attr("buttonClick", byodOrderButtonClicked.toString());
 
         // Get the common fields and the order-specific fields
-        var commonFields = document.querySelectorAll('label, input[type="email"], select, #runButton');
-        var phoneNameDropdown = document.getElementById("phoneNameDropdown");
-        var phoneNameMultiselect = document.getElementById("phoneNameMultiselect");
+        var commonFields = $('label, input[type="email"], select, #runButton');
+        var phoneNameDropdown = $("#phoneNameDropdown");
+        var phoneNameMultiselect = $("#phoneNameMultiselect");
 
         // Display the common fields
-        commonFields.forEach(function(item) {
-            item.style.display = "block";
-        });
+        commonFields.show();
+
+        // Hide the BYOD Order count label when 'single' or 'multi' order is selected
+        if (type === 'single' || type === 'multi') {
+            $("#byodOrderCountLabel").hide();
+            $("#byodOrderCountField").hide();
+        } else {
+            $("#byodOrderCountLabel").show();
+            $("#byodOrderCountField").show();
+        }
 
         // Show or hide the appropriate phone name field based on the order type
         if (type === 'single') {
-            phoneNameDropdown.style.display = "block";
-            phoneNameMultiselect.style.display = "none";
+            phoneNameDropdown.show();
+            phoneNameMultiselect.hide();
         } else if (type === 'multi') {
-            phoneNameDropdown.style.display = "none";
-            phoneNameMultiselect.style.display = "block";
+            phoneNameDropdown.hide();
+            phoneNameMultiselect.show();
         } else if (type === 'byod') {
-            phoneNameDropdown.style.display = "block";
-            phoneNameMultiselect.style.display = "none";
+            phoneNameDropdown.show();
+            phoneNameMultiselect.hide();
         }
 
         updateRunButtonState();
@@ -296,6 +316,7 @@
     function updateTextValue(inputElement) {
         var value = inputElement.value;
         inputElement.setAttribute("value", value);
+        updateRunButtonState();
     }
 
     // Function to update the value attribute of the respective input field
@@ -319,25 +340,23 @@
 
     // Limit the selection to 5 checkboxes
     function limitSelection() {
-        var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        var checkboxes = $('input[type="checkbox"]');
         var checkedCount = 0;
 
-        checkboxes.forEach(function(checkbox) {
-            if (checkbox.checked) {
+        checkboxes.each(function() {
+            if ($(this).prop("checked")) {
                 checkedCount++;
             }
         });
 
         if (checkedCount >= 5) {
-            checkboxes.forEach(function(checkbox) {
-                if (!checkbox.checked) {
-                    checkbox.disabled = true;
+            checkboxes.each(function() {
+                if (!$(this).prop("checked")) {
+                    $(this).prop("disabled", true);
                 }
             });
         } else {
-            checkboxes.forEach(function(checkbox) {
-                checkbox.disabled = false;
-            });
+            checkboxes.prop("disabled", false);
         }
 
         updateRunButtonState();
@@ -345,7 +364,7 @@
 
     function run() {
         // Set button click attribute to true
-        document.getElementById("runButton").setAttribute("buttonClick", "true");
+        $("#runButton").attr("buttonClick", "true");
 
         // Log button click booleans to the console
         console.log("Single Order Button Clicked: " + singleOrderButtonClicked);
@@ -353,18 +372,18 @@
         console.log("BYOD Order Button Clicked: " + byodOrderButtonClicked);
 
         // Get the values of all fields
-        var emailValue = document.getElementById("emailField").value;
-        var addressValue = document.getElementById("addressField").value;
+        var emailValue = $("#emailField").val();
+        var addressValue = $("#addressField").val();
         var phoneNameValue = "";
 
         if (singleOrderButtonClicked) {
-            phoneNameValue = document.getElementById("phoneNameField").value;
+            phoneNameValue = $("#phoneNameField").val();
         } else if (multiOrderButtonClicked) {
-            var checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            var checkboxes = $('input[type="checkbox"]:checked');
             var selectedOptions = [];
 
-            checkboxes.forEach(function(checkbox) {
-                selectedOptions.push(checkbox.value);
+            checkboxes.each(function() {
+                selectedOptions.push($(this).val());
             });
 
             phoneNameValue = selectedOptions.join(", ");
@@ -377,61 +396,70 @@
     }
 
     function updateRunButtonState() {
-        var emailValue = document.getElementById("emailField").value;
-        var addressValue = document.getElementById("addressField").value;
+        var emailValue = $("#emailField").val();
+        var addressValue = $("#addressField").val();
+        var byodOrderCount = parseInt($("#byodOrderCountField").val());
 
-        var runButton = document.getElementById("runButton");
+        var runButton = $("#runButton");
         if (byodOrderButtonClicked && addressValue) {
-            runButton.disabled = false;
-            runButton.style.opacity = "1"; // Restore full opacity
+            runButton.prop("disabled", false).css("opacity", "1");
         } else if (singleOrderButtonClicked || multiOrderButtonClicked) {
             var phoneNameValue = "";
 
             if (singleOrderButtonClicked) {
-                phoneNameValue = document.getElementById("phoneNameField").value;
+                phoneNameValue = $("#phoneNameField").val();
             } else if (multiOrderButtonClicked) {
-                var checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                var checkboxes = $('input[type="checkbox"]:checked');
                 var selectedOptions = [];
 
-                checkboxes.forEach(function(checkbox) {
-                    selectedOptions.push(checkbox.value);
+                checkboxes.each(function() {
+                    selectedOptions.push($(this).val());
                 });
 
                 phoneNameValue = selectedOptions.join(", ");
             }
 
             if (emailValue && addressValue && phoneNameValue) {
-                runButton.disabled = false;
-                runButton.style.opacity = "1"; // Restore full opacity
+                runButton.prop("disabled", false).css("opacity", "1");
             } else {
-                runButton.disabled = true;
-                runButton.style.opacity = "0.5"; // Reduced opacity
+                runButton.prop("disabled", true).css("opacity", "0.5");
             }
         } else {
-            runButton.disabled = true;
-            runButton.style.opacity = "0.5"; // Reduced opacity
+            runButton.prop("disabled", true).css("opacity", "0.5");
+        }
+
+        // Disable phone name options if BYOD orders count is 5
+        if (byodOrderButtonClicked && byodOrderCount === 5) {
+            $("#phoneNameField").prop("disabled", true);
+            $("#phoneNameField").val("");
+        } else {
+            $("#phoneNameField").prop("disabled", false);
         }
     }
 
     function clearData() {
-        document.getElementById("emailField").value = "";
-        document.getElementById("addressField").value = "";
-        document.getElementById("phoneNameField").value = "";
-        var checkboxes = document.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(function(checkbox) {
-            checkbox.checked = false;
-        });
+        $("#emailField").val("");
+        $("#addressField").val("");
+        $("#phoneNameField").val("");
+        $('input[type="checkbox"]').prop("checked", false);
         updateRunButtonState();
     }
 
     // Populate options for address dropdown
-    populateDropdownOptions(document.getElementById("addressField"), addressOptions);
+    populateDropdownOptions($("#addressField"), addressOptions);
 
     // Populate options for phone name dropdown
-    populateDropdownOptions(document.getElementById("phoneNameField"), phoneNameOptions);
+    populateDropdownOptions($("#phoneNameField"), phoneNameOptions);
 
     // Populate options for phone name multiselect
-    populateCheckboxOptions(document.getElementById("checkboxContainer"), phoneNameOptions);
+    populateCheckboxOptions($("#checkboxContainer"), phoneNameOptions);
+
+    // Update dropdowns when corresponding checkboxes are selected
+    $('#checkboxContainer input[type="checkbox"]').change(function() {
+        var select = $(this).parent().find('.phone-plan-dropdown');
+        select.prop('disabled', !this.checked);
+    });
 </script>
 </body>
 </html>
+
